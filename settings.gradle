@@ -1,0 +1,2 @@
+rootProject.name = "android_custom_srl"
+include ':app'
