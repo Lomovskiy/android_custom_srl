@@ -3,14 +3,11 @@ package com.lomovskiy.customsrl
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
-import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewGroup.LayoutParams
 import android.view.animation.DecelerateInterpolator
 
 open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyle: Int = 0)
@@ -147,7 +144,7 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
             MotionEvent.ACTION_CANCEL,
             MotionEvent.ACTION_UP -> {
                 currentState = State.ROLLING
-                stopRefreshing()
+                stopPullingDown()
             }
         }
 
@@ -183,9 +180,12 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
 
         topChildView.view.y = topChildView.positionAttr.top + offsetY
         contentChildView.view.y = contentChildView.positionAttr.top + offsetY
+        if (offsetY > triggerOffSetTop) {
+            onCouldStartAnimation()
+        }
     }
 
-    override fun stopRefreshing() {
+    override fun stopPullingDown() {
         val rollBackOffset = if (offsetY > triggerOffSetTop) offsetY - triggerOffSetTop else offsetY
         val triggerOffset = if (rollBackOffset != offsetY) triggerOffSetTop else 0
 
@@ -199,27 +199,33 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator?) {
                     if (triggerOffset != 0 && currentState == State.ROLLING) {
+                        // можно запускать refresh
                         currentState = State.TRIGGERING
                         offsetY = triggerOffset.toFloat()
                         onTriggerListeners.forEach { it() }
                     } else {
+                        // просто вернулись назад (недостаточно потянули)
                         currentState = State.IDLE
                         offsetY = 0f
+                        onCouldEndAnimation()
                     }
                 }
             })
-            onMoveUp()
             start()
         }
-    }
-
-    open fun onMoveUp() {
-
     }
 
     //<editor-fold desc="Helpers">
     fun onProgressListener(onProgressListener: (Float) -> Unit) {
         onProgressListeners.add(onProgressListener)
+    }
+
+    open fun onCouldStartAnimation() {
+
+    }
+
+    open fun onCouldEndAnimation() {
+
     }
 
     fun onTriggerListener(onTriggerListener: () -> Unit) {

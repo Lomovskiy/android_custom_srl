@@ -1,5 +1,5 @@
 package com.lomovskiy.customsrl
 
 interface RefreshView {
-    fun stopRefreshing()
+    fun stopPullingDown()
 }

@@ -1,16 +1,13 @@
 package com.lomovskiy.customsrl
 
 import android.content.Context
-import android.graphics.drawable.AnimationDrawable
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout
-import androidx.core.content.ContextCompat
 
 const val TAG_LOG = "TAG_LOG"
 
@@ -24,13 +21,11 @@ class Srl @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : SimplePullToRefreshLayout(context, attrs, defStyleAttr) {
 
-    private val loaderView: LoaderView
+    private val loaderView: LoaderView = LoaderView(context).apply {
+        layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
+    }
 
     init {
-
-        loaderView = LoaderView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
-        }
 
         addView(FrameLayout(context).apply {
             layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, dp(64))
@@ -38,18 +33,20 @@ class Srl @JvmOverloads constructor(
         })
 
         onTriggerListener {
-            loaderView.startLoading()
 
             android.os.Handler(Looper.getMainLooper()).postDelayed({
-                loaderView.stopLoading()
-                stopRefreshing()
-            }, 2700)
+                stopPullingDown()
+            }, loaderView.getFullDuration().toLong())
         }
 
     }
 
-    override fun onMoveUp() {
+    override fun onCouldStartAnimation() {
         loaderView.startLoading()
+    }
+
+    override fun onCouldEndAnimation() {
+        loaderView.stopLoading()
     }
 
 }
