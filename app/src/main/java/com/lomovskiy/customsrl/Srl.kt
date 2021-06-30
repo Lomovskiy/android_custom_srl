@@ -48,4 +48,8 @@ class Srl @JvmOverloads constructor(
 
     }
 
+    override fun onMoveUp() {
+        loaderView.startLoading()
+    }
+
 }
