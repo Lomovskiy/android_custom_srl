@@ -35,8 +35,8 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
         private const val ROLL_BACK_DURATION = 500L
     }
 
-    private lateinit var topChildView: ChildView
-    private lateinit var contentChildView: ChildView
+    private lateinit var topChildView: View
+    private lateinit var contentChildView: View
 
     override fun onFinishInflate() {
         super.onFinishInflate()
@@ -45,54 +45,45 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
             throw IllegalStateException("Only a topView and a contentView are allowed. Exactly 2 children are expected, but was $childCount")
         }
 
-        topChildView = ChildView(getChildAt(0))
-        contentChildView = ChildView(getChildAt(1))
+        topChildView = getChildAt(0)
+        contentChildView = getChildAt(1)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
         fun setInitialValues() {
-            val topView = topChildView.view
 //            val layoutParams = topView.layoutParams as MarginLayoutParams
 //            val topViewHeight = topView.measuredHeight + layoutParams.topMargin + layoutParams.bottomMargin
-            topChildView = topChildView.copy(positionAttr = PositionAttr(height = topView.measuredHeight))
-            triggerOffSetTop = topView.measuredHeight
+            triggerOffSetTop = topChildView.measuredHeight
             maxOffSetTop = triggerOffSetTop * 3
         }
 
-        measureChild(topChildView.view, widthMeasureSpec, heightMeasureSpec)
-        measureChild(contentChildView.view, widthMeasureSpec, heightMeasureSpec)
+        measureChild(topChildView, widthMeasureSpec, heightMeasureSpec)
+        measureChild(contentChildView, widthMeasureSpec, heightMeasureSpec)
 
         setInitialValues()
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         fun layoutTopView() {
-            val topView = topChildView.view
-            val topViewAttr = topChildView.positionAttr
-
-            val lp = topView.layoutParams as MarginLayoutParams
+            val lp = topChildView.layoutParams as MarginLayoutParams
             val left: Int = paddingLeft + lp.leftMargin
-            val top: Int = (paddingTop + lp.topMargin) - topViewAttr.height
-            val right: Int = left + topView.measuredWidth
+            val top: Int = (paddingTop + lp.topMargin) - topChildView.measuredHeight
+            val right: Int = left + topChildView.measuredWidth
             val bottom = 0
 
-            topChildView = topChildView.copy(positionAttr = PositionAttr(left = left, top = top, right = right, bottom = bottom))
-            topView.layout(left, top, right, bottom)
+            topChildView.layout(left, top, right, bottom)
         }
 
         fun layoutContentView() {
-            val contentView = contentChildView.view
-
-            val lp = contentView.layoutParams as MarginLayoutParams
+            val lp = contentChildView.layoutParams as MarginLayoutParams
             val left: Int = paddingLeft + lp.leftMargin
             val top: Int = paddingTop + lp.topMargin
-            val right: Int = left + contentView.measuredWidth
-            val bottom: Int = top + contentView.measuredHeight
+            val right: Int = left + contentChildView.measuredWidth
+            val bottom: Int = top + contentChildView.measuredHeight
 
-            contentChildView = contentChildView.copy(positionAttr = PositionAttr(left = left, top = top, right = right, bottom = bottom))
-            contentView.layout(left, top, right, bottom)
+            contentChildView.layout(left, top, right, bottom)
         }
 
         layoutTopView()
@@ -101,7 +92,7 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         fun checkIfScrolledFurther(ev: MotionEvent, dy: Float, dx: Float) =
-                if (!contentChildView.view.canScrollVertically(-1)) {
+                if (!contentChildView.canScrollVertically(-1)) {
                     ev.y > downY && Math.abs(dy) > Math.abs(dx)
                 } else {
                     false
@@ -178,8 +169,8 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
         onProgressListeners.forEach { it(pullFraction) }
         lastPullFraction = pullFraction
 
-        topChildView.view.y = topChildView.positionAttr.top + offsetY
-        contentChildView.view.y = contentChildView.positionAttr.top + offsetY
+        topChildView.y = topChildView.top + offsetY
+        contentChildView.y = contentChildView.top + offsetY
         if (offsetY > triggerOffSetTop) {
             onCouldStartAnimation()
         }
@@ -193,8 +184,8 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
             duration = ROLL_BACK_DURATION
             interpolator = DecelerateInterpolator()
             addUpdateListener {
-                topChildView.view.y = topChildView.positionAttr.top + triggerOffset + rollBackOffset * animatedValue as Float
-                contentChildView.view.y = contentChildView.positionAttr.top + triggerOffset + rollBackOffset * animatedValue as Float
+                topChildView.y = topChildView.top + triggerOffset + rollBackOffset * animatedValue as Float
+                contentChildView.y = contentChildView.top + triggerOffset + rollBackOffset * animatedValue as Float
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator?) {
@@ -215,7 +206,6 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
         }
     }
 
-    //<editor-fold desc="Helpers">
     fun onProgressListener(onProgressListener: (Float) -> Unit) {
         onProgressListeners.add(onProgressListener)
     }
@@ -244,23 +234,10 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
 
     override fun generateLayoutParams(p: ViewGroup.LayoutParams?) = MarginLayoutParams(p)
 
-    enum class ViewType(val value: Int) {
-        UNKNOWN(-1),
-        TOP_VIEW(0),
-        CONTENT(1);
-
-        companion object {
-            fun fromValue(value: Int) = values().first { it.value == value }
-        }
-    }
-
     enum class State {
         IDLE,
         ROLLING,
         TRIGGERING
     }
 
-    data class ChildView(val view: View, val positionAttr: PositionAttr = PositionAttr())
-    data class PositionAttr(val left: Int = 0, val top: Int = 0, val right: Int = 0, val bottom: Int = 0, val height: Int = 0)
-    //</editor-fold>
 }
