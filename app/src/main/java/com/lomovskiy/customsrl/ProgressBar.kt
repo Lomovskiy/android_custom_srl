@@ -1,6 +1,7 @@
 package com.lomovskiy.customsrl
 
 import android.content.Context
+import android.content.res.TypedArray
 import android.graphics.drawable.AnimationDrawable
 import android.os.Handler
 import android.os.Looper
@@ -33,11 +34,13 @@ class ListenableAnimationDrawable(
 
 }
 
-class LoaderView @JvmOverloads constructor(
+class ProgressBar @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : AppCompatImageView(context, attrs, defStyleAttr) {
+
+    private val animations: MutableList<AnimationDrawable> = mutableListOf()
 
     private val arrowAnimation: ListenableAnimationDrawable = ListenableAnimationDrawable(
         onEndTask = {
@@ -65,9 +68,18 @@ class LoaderView @JvmOverloads constructor(
     }
 
     private lateinit var currentState: State
+    private val mode: Mode
 
     init {
-        updateState(State.START)
+        val typeArray: TypedArray = context.obtainStyledAttributes(attrs, R.styleable.ProgressBar, defStyleAttr, 0)
+        val modeCode: Int = typeArray.getInteger(R.styleable.ProgressBar_style, Mode.SWIPING.code)
+        mode = Mode.fromCode(modeCode)
+        typeArray.recycle()
+        animations.add(loadingAnimation)
+        if (mode == Mode.SWIPING) {
+            animations.add(0, arrowAnimation)
+        }
+        updateState(State.INIT)
     }
 
     fun startLoading() {
@@ -78,13 +90,13 @@ class LoaderView @JvmOverloads constructor(
     }
 
     fun stopLoading() {
-        updateState(State.START)
+        updateState(State.INIT)
     }
 
     private fun updateState(state: State) {
         currentState = state
         when (state) {
-            State.START -> {
+            State.INIT -> {
                 arrowAnimation.stop()
                 loadingAnimation.stop()
                 setBackgroundDrawable(ContextCompat.getDrawable(context, R.drawable.ic_36_strelka_1))
@@ -92,6 +104,9 @@ class LoaderView @JvmOverloads constructor(
             State.LOADING -> {
                 setBackgroundDrawable(arrowAnimation)
                 arrowAnimation.start()
+            }
+            State.LOADING_INFINITY -> {
+
             }
             State.END -> {
                 setBackgroundDrawable(ContextCompat.getDrawable(context, R.drawable.ic_36_loader_1))
@@ -103,14 +118,25 @@ class LoaderView @JvmOverloads constructor(
         return arrowAnimation.getFullDuration() + loadingAnimation.getFullDuration()
     }
 
-    enum class Mode {
-        FULL,
-        LIGHT
+    enum class Mode(val code: Int) {
+        INFINITY(0),
+        SWIPING(1);
+
+        companion object {
+
+            fun fromCode(code: Int): Mode {
+                return values().find { mode: Mode ->
+                    mode.code == code
+                }!!
+            }
+
+        }
     }
 
     enum class State {
-        START,
+        INIT,
         LOADING,
+        LOADING_INFINITY,
         END
     }
 

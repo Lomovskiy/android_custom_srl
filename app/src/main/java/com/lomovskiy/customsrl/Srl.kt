@@ -21,7 +21,7 @@ class Srl @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : SimplePullToRefreshLayout(context, attrs, defStyleAttr) {
 
-    private val loaderView: LoaderView = LoaderView(context).apply {
+    private val progressBar: ProgressBar = ProgressBar(context).apply {
         layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
     }
 
@@ -29,24 +29,24 @@ class Srl @JvmOverloads constructor(
 
         addView(FrameLayout(context).apply {
             layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, dp(64))
-            addView(loaderView)
+            addView(progressBar)
         })
 
         onTriggerListener {
 
             android.os.Handler(Looper.getMainLooper()).postDelayed({
                 stopPullingDown()
-            }, loaderView.getFullDuration().toLong())
+            }, progressBar.getFullDuration().toLong())
         }
 
     }
 
     override fun onCouldStartAnimation() {
-        loaderView.startLoading()
+        progressBar.startLoading()
     }
 
     override fun onCouldEndAnimation() {
-        loaderView.stopLoading()
+        progressBar.stopLoading()
     }
 
 }
