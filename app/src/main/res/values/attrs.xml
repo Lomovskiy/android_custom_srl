@@ -7,5 +7,11 @@
             <enum name="swiping" value="1" />
         </attr>
     </declare-styleable>
+    
+    <declare-styleable name="EAProgressBar">
+        
+        <attr name="spin_time_ms" format="integer" />
+        
+    </declare-styleable>
 
 </resources>

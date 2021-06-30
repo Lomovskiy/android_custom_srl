@@ -95,6 +95,10 @@ class ProgressBar @JvmOverloads constructor(
 
     private fun updateState(state: State) {
         currentState = state
+        if (mode == Mode.INFINITY) {
+
+            return
+        }
         when (state) {
             State.INIT -> {
                 arrowAnimation.stop()

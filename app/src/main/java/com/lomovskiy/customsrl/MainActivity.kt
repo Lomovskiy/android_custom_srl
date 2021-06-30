@@ -6,7 +6,7 @@ import android.os.Bundle
 class MainActivity : AppCompatActivity() {
 
     private lateinit var srl: Srl
-    private lateinit var progressBar: ProgressBar
+    private lateinit var progressBar: EAProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

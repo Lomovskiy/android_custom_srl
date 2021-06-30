@@ -7,11 +7,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.lomovskiy.customsrl.ProgressBar
+    <com.lomovskiy.customsrl.EAProgressBar
         android:id="@+id/progress_bar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:style="infinity"
+        app:spin_time_ms="400"
         />
 
 </com.lomovskiy.customsrl.Srl>
