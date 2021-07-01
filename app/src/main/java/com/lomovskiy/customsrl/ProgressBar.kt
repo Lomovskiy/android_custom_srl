@@ -6,6 +6,7 @@ import android.graphics.drawable.AnimationDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.view.animation.AnimationUtils
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
 
