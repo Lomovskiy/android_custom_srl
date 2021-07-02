@@ -4,19 +4,35 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
+import android.os.Looper
 import android.util.AttributeSet
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
+import android.widget.ImageView
 
-open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyle: Int = 0)
-    : ViewGroup(context, attrs, defStyle), RefreshView {
+class EASwipeToRefreshLayout @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyle: Int = 0
+) : ViewGroup(context, attrs, defStyle) {
 
-    var triggerOffSetTop = 0
-        private set
-    var maxOffSetTop = 0
-        private set
+    private val progressBar: EAProgressBar = EAProgressBar(context).apply {
+        layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
+    }
+
+    private val arrowView: ImageView = ImageView(context).apply {
+        setBackgroundResource(R.drawable.ic_36_strelka_1)
+    }
+
+    private val arrowAnimation: ValueAnimator
+
+    private var triggerOffSetTop = 0
+    private var maxOffSetTop = 0
 
     private var downX = 0F
     private var downY = 0F
@@ -37,6 +53,32 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
 
     private lateinit var topChildView: View
     private lateinit var contentChildView: View
+
+    init {
+
+        addView(
+            FrameLayout(context).apply {
+                layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(64))
+                addView(progressBar)
+            }
+        )
+
+        arrowAnimation = ValueAnimator.ofInt(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180).apply {
+            duration = 100
+            addUpdateListener {
+                rotation = (it.animatedValue as Int).toFloat()
+            }
+
+        }
+
+        onTriggerListener {
+
+            android.os.Handler(Looper.getMainLooper()).postDelayed({
+                stopPullingDown()
+            }, 7000)
+        }
+
+    }
 
     override fun onFinishInflate() {
         super.onFinishInflate()
@@ -176,7 +218,7 @@ open class SimplePullToRefreshLayout @JvmOverloads constructor(context: Context,
         }
     }
 
-    override fun stopPullingDown() {
+    private fun stopPullingDown() {
         val rollBackOffset = if (offsetY > triggerOffSetTop) offsetY - triggerOffSetTop else offsetY
         val triggerOffset = if (rollBackOffset != offsetY) triggerOffSetTop else 0
 

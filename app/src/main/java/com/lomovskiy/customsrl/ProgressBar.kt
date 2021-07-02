@@ -6,9 +6,16 @@ import android.graphics.drawable.AnimationDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.util.TypedValue
+import android.view.View
 import android.view.animation.AnimationUtils
+import android.widget.FrameLayout
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
+
+inline fun View.dp(value: Int): Int {
+    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
+}
 
 class ListenableAnimationDrawable(
     private val onStartTask: Runnable? = null,
