@@ -1,12 +1,12 @@
 package com.lomovskiy.customsrl
 
-import android.R.attr
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.os.Looper
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -15,9 +15,11 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
-import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 
+inline fun View.dp(value: Int): Int {
+    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
+}
 
 const val DECELERATION_DEGREE: Long = 2
 const val ARROW_SPEED: Long = 75 * DECELERATION_DEGREE
