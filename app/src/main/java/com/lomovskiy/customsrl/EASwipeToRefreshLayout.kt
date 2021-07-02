@@ -1,12 +1,12 @@
 package com.lomovskiy.customsrl
 
+import android.R.attr
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.os.Looper
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -14,6 +14,14 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.ProgressBar
+import androidx.core.animation.doOnEnd
+import androidx.core.content.ContextCompat
+
+
+const val DECELERATION_DEGREE: Long = 2
+const val ARROW_SPEED: Long = 75 * DECELERATION_DEGREE
+const val REFRESH_DURATION: Long = ARROW_SPEED * 2
 
 class EASwipeToRefreshLayout @JvmOverloads constructor(
     context: Context,
@@ -21,15 +29,41 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     defStyle: Int = 0
 ) : ViewGroup(context, attrs, defStyle) {
 
-    private val progressBar: EAProgressBar = EAProgressBar(context).apply {
+    private val progressBar: ProgressBar = ProgressBar(context).apply {
         layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
+        isIndeterminate = true
+        indeterminateDrawable = ContextCompat.getDrawable(context, R.drawable.loader)
+        visibility = View.GONE
     }
 
     private val arrowView: ImageView = ImageView(context).apply {
+        layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
         setBackgroundResource(R.drawable.ic_36_strelka_1)
     }
 
-    private val arrowAnimation: ValueAnimator
+    private val arrowAnimator: ValueAnimator
+
+    private val arrowAnimatorListener: Animator.AnimatorListener = object : Animator.AnimatorListener {
+
+        override fun onAnimationStart(animation: Animator?) {
+
+        }
+
+        override fun onAnimationEnd(animation: Animator?) {
+            arrowView.visibility = View.GONE
+            progressBar.visibility = View.VISIBLE
+            reverseArrowAnimator()
+        }
+
+        override fun onAnimationCancel(animation: Animator?) {
+
+        }
+
+        override fun onAnimationRepeat(animation: Animator?) {
+
+        }
+
+    }
 
     private var triggerOffSetTop = 0
     private var maxOffSetTop = 0
@@ -60,22 +94,22 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
             FrameLayout(context).apply {
                 layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(64))
                 addView(progressBar)
+                addView(arrowView)
             }
         )
 
-        arrowAnimation = ValueAnimator.ofInt(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180).apply {
-            duration = 100
-            addUpdateListener {
-                rotation = (it.animatedValue as Int).toFloat()
-            }
-
+        arrowAnimator = ValueAnimator.ofInt(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180)
+        arrowAnimator.addUpdateListener {
+            arrowView.rotation = (it.animatedValue as Int).toFloat()
         }
+        arrowAnimator.duration = ARROW_SPEED
+        arrowAnimator.addListener(arrowAnimatorListener)
 
         onTriggerListener {
 
             android.os.Handler(Looper.getMainLooper()).postDelayed({
                 stopPullingDown()
-            }, 7000)
+            }, REFRESH_DURATION)
         }
 
     }
@@ -252,12 +286,18 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         onProgressListeners.add(onProgressListener)
     }
 
-    open fun onCouldStartAnimation() {
-
+    private fun onCouldStartAnimation() {
+        if (arrowAnimator.isRunning || progressBar.visibility == View.VISIBLE) {
+            return
+        }
+        arrowAnimator.addListener(arrowAnimatorListener)
+        arrowView.visibility = View.VISIBLE
+        arrowAnimator.start()
     }
 
-    open fun onCouldEndAnimation() {
-
+    private fun onCouldEndAnimation() {
+        progressBar.visibility = View.GONE
+        arrowView.visibility = View.VISIBLE
     }
 
     fun onTriggerListener(onTriggerListener: () -> Unit) {
@@ -280,6 +320,11 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         IDLE,
         ROLLING,
         TRIGGERING
+    }
+
+    private fun reverseArrowAnimator() {
+        arrowAnimator.removeListener(arrowAnimatorListener)
+        arrowView.rotation = 0F
     }
 
 }

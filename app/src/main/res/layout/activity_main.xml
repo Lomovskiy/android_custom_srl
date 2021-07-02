@@ -7,9 +7,10 @@
     android:layout_height="match_parent"
     >
 
-    <com.lomovskiy.customsrl.EAArrow
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="Hello world"
         />
 
 </com.lomovskiy.customsrl.EASwipeToRefreshLayout>
