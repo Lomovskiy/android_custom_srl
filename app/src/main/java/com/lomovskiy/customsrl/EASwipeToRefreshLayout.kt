@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.TypedValue
@@ -14,8 +15,8 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
-import android.widget.ProgressBar
-import androidx.core.content.ContextCompat
+import androidx.vectordrawable.graphics.drawable.Animatable2Compat
+import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 
 inline fun View.dp(value: Int): Int {
     return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
@@ -31,12 +32,20 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     defStyle: Int = 0
 ) : ViewGroup(context, attrs, defStyle) {
 
-    private val progressBar: ProgressBar = ProgressBar(context).apply {
+    private val animatedVectorDrawable = AnimatedVectorDrawableCompat.create(context, R.drawable.avd_loader)!!
+
+    private val progressImage: ImageView = ImageView(context).apply {
         layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
-        isIndeterminate = true
-        indeterminateDrawable = ContextCompat.getDrawable(context, R.drawable.loader)
+        setImageDrawable(animatedVectorDrawable)
+        animatedVectorDrawable.registerAnimationCallback(object:
+            Animatable2Compat.AnimationCallback() {
+            override fun onAnimationEnd(drawable: Drawable?) {
+                post { animatedVectorDrawable.start() }
+            }
+        })
         visibility = View.GONE
     }
+
 
     private val arrowView: ImageView = ImageView(context).apply {
         layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
@@ -53,7 +62,8 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
 
         override fun onAnimationEnd(animation: Animator?) {
             arrowView.visibility = View.GONE
-            progressBar.visibility = View.VISIBLE
+            progressImage.visibility = View.VISIBLE
+            animatedVectorDrawable.start()
             reverseArrowAnimator()
         }
 
@@ -95,7 +105,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         addView(
             FrameLayout(context).apply {
                 layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(64))
-                addView(progressBar)
+                addView(progressImage)
                 addView(arrowView)
             }
         )
@@ -289,7 +299,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     }
 
     private fun onCouldStartAnimation() {
-        if (arrowAnimator.isRunning || progressBar.visibility == View.VISIBLE) {
+        if (arrowAnimator.isRunning || progressImage.visibility == View.VISIBLE) {
             return
         }
         arrowAnimator.addListener(arrowAnimatorListener)
@@ -298,7 +308,8 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     }
 
     private fun onCouldEndAnimation() {
-        progressBar.visibility = View.GONE
+        progressImage.visibility = View.GONE
+        animatedVectorDrawable.stop()
         arrowView.visibility = View.VISIBLE
     }
 
