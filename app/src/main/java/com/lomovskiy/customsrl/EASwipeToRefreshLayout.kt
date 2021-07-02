@@ -55,7 +55,24 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         setBackgroundResource(R.drawable.ic_36_strelka_1)
     }
 
-    private val arrowAnimator: ValueAnimator
+    private val arrowAnimator: ObjectAnimator = ObjectAnimator.ofFloat(arrowView, View.ROTATION, 0f, 180f).apply {
+        duration = ARROW_SPEED
+    }
+
+    private val arrowAnimatorListener = object : AnimatorListenerAdapter() {
+
+        override fun onAnimationStart(animation: Animator?) {
+            arrowView.visibility = View.VISIBLE
+        }
+
+        override fun onAnimationEnd(animation: Animator?) {
+            arrowView.visibility = View.GONE
+            progressBarIOS.start()
+            progressBarIOS.visibility = View.VISIBLE
+            reverseArrowAnimator()
+        }
+
+    }
   
     private var triggerOffset = 0
     private var maxOffSet = 0
@@ -81,16 +98,6 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
                 addView(arrowView)
             }
         )
-        arrowAnimator = ObjectAnimator.ofFloat(arrowView, View.ROTATION, 0f, 180f).apply {
-            duration = ARROW_SPEED
-            doOnStart { arrowView.visibility = View.VISIBLE }
-            doOnEnd {
-                arrowView.visibility = View.GONE
-                progressImage.visibility = View.VISIBLE
-                animatedVectorDrawable.start()
-                reverseArrowAnimator()
-            }
-        }
 
         onTriggerListener {
 
@@ -260,6 +267,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         if (arrowAnimator.isRunning || progressBarIOS.visibility == View.VISIBLE) {
             return
         }
+        arrowAnimator.addListener(arrowAnimatorListener)
         arrowAnimator.start()
     }
 
