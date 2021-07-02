@@ -2,6 +2,7 @@ package com.lomovskiy.customsrl
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.drawable.Drawable
@@ -15,6 +16,8 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
+import androidx.core.animation.doOnEnd
+import androidx.core.animation.doOnStart
 import androidx.vectordrawable.graphics.drawable.Animatable2Compat
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 
@@ -54,29 +57,6 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
 
     private val arrowAnimator: ValueAnimator
 
-    private val arrowAnimatorListener: Animator.AnimatorListener = object : Animator.AnimatorListener {
-
-        override fun onAnimationStart(animation: Animator?) {
-
-        }
-
-        override fun onAnimationEnd(animation: Animator?) {
-            arrowView.visibility = View.GONE
-            progressImage.visibility = View.VISIBLE
-            animatedVectorDrawable.start()
-            reverseArrowAnimator()
-        }
-
-        override fun onAnimationCancel(animation: Animator?) {
-
-        }
-
-        override fun onAnimationRepeat(animation: Animator?) {
-
-        }
-
-    }
-
     private var triggerOffSetTop = 0
     private var maxOffSetTop = 0
 
@@ -109,13 +89,16 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
                 addView(arrowView)
             }
         )
-
-        arrowAnimator = ValueAnimator.ofInt(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180)
-        arrowAnimator.addUpdateListener {
-            arrowView.rotation = (it.animatedValue as Int).toFloat()
+        arrowAnimator = ObjectAnimator.ofFloat(arrowView, View.ROTATION, 0f, 180f).apply {
+            duration = ARROW_SPEED
+            doOnStart { arrowView.visibility = View.VISIBLE }
+            doOnEnd {
+                arrowView.visibility = View.GONE
+                progressImage.visibility = View.VISIBLE
+                animatedVectorDrawable.start()
+                reverseArrowAnimator()
+            }
         }
-        arrowAnimator.duration = ARROW_SPEED
-        arrowAnimator.addListener(arrowAnimatorListener)
 
         onTriggerListener {
 
@@ -302,8 +285,6 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         if (arrowAnimator.isRunning || progressImage.visibility == View.VISIBLE) {
             return
         }
-        arrowAnimator.addListener(arrowAnimatorListener)
-        arrowView.visibility = View.VISIBLE
         arrowAnimator.start()
     }
 
@@ -336,7 +317,6 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     }
 
     private fun reverseArrowAnimator() {
-        arrowAnimator.removeListener(arrowAnimatorListener)
         arrowView.rotation = 0F
     }
 
