@@ -25,27 +25,27 @@ inline fun View.dp(value: Int): Int {
     return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
 }
 
-const val DECELERATION_DEGREE: Long = 2
-const val ARROW_SPEED: Long = 75 * DECELERATION_DEGREE
-const val REFRESH_DURATION: Long = ARROW_SPEED * 2
-
 class EASwipeToRefreshLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyle: Int = 0
 ) : ViewGroup(context, attrs, defStyle) {
 
-    private val animatedVectorDrawable = AnimatedVectorDrawableCompat.create(context, R.drawable.avd_loader)!!
+    companion object {
 
-    private val progressImage: ImageView = ImageView(context).apply {
-        layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
-        setImageDrawable(animatedVectorDrawable)
-        animatedVectorDrawable.registerAnimationCallback(object:
-            Animatable2Compat.AnimationCallback() {
-            override fun onAnimationEnd(drawable: Drawable?) {
-                post { animatedVectorDrawable.start() }
-            }
-        })
+        private const val STICKY_FACTOR = 0.66F
+        private const val STICKY_MULTIPLIER = 0.75F
+        private const val ROLL_BACK_DURATION = 500L
+
+        const val DECELERATION_DEGREE: Long = 2
+        const val ARROW_SPEED: Long = 75 * DECELERATION_DEGREE
+        const val REFRESH_DURATION: Long = ARROW_SPEED * 2
+
+    }
+
+    private val progressBarIOS: ProgressBarIOS = ProgressBarIOS(context).apply {
+        layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+        isImmediately = false
         visibility = View.GONE
     }
 
@@ -56,26 +56,18 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     }
 
     private val arrowAnimator: ValueAnimator
-
-    private var triggerOffSetTop = 0
-    private var maxOffSetTop = 0
+  
+    private var triggerOffset = 0
+    private var maxOffSet = 0
 
     private var downX = 0F
     private var downY = 0F
 
     private var offsetY = 0F
-    private var lastPullFraction = 0F
 
     private var currentState: State = State.IDLE
 
-    private val onProgressListeners: MutableCollection<(Float) -> Unit> = mutableListOf()
     private val onTriggerListeners: MutableCollection<() -> Unit> = mutableListOf()
-
-    companion object {
-        private const val STICKY_FACTOR = 0.66F
-        private const val STICKY_MULTIPLIER = 0.75F
-        private const val ROLL_BACK_DURATION = 500L
-    }
 
     private lateinit var topChildView: View
     private lateinit var contentChildView: View
@@ -85,7 +77,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         addView(
             FrameLayout(context).apply {
                 layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(64))
-                addView(progressImage)
+                addView(progressBarIOS)
                 addView(arrowView)
             }
         )
@@ -122,43 +114,33 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-
-        fun setInitialValues() {
-//            val layoutParams = topView.layoutParams as MarginLayoutParams
-//            val topViewHeight = topView.measuredHeight + layoutParams.topMargin + layoutParams.bottomMargin
-            triggerOffSetTop = topChildView.measuredHeight
-            maxOffSetTop = triggerOffSetTop * 3
-        }
-
         measureChild(topChildView, widthMeasureSpec, heightMeasureSpec)
         measureChild(contentChildView, widthMeasureSpec, heightMeasureSpec)
-
-        setInitialValues()
+        triggerOffset = topChildView.measuredHeight
+        maxOffSet = triggerOffset * 3
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        fun layoutTopView() {
-            val lp = topChildView.layoutParams as MarginLayoutParams
-            val left: Int = paddingLeft + lp.leftMargin
-            val top: Int = (paddingTop + lp.topMargin) - topChildView.measuredHeight
-            val right: Int = left + topChildView.measuredWidth
-            val bottom = 0
-
-            topChildView.layout(left, top, right, bottom)
-        }
-
-        fun layoutContentView() {
-            val lp = contentChildView.layoutParams as MarginLayoutParams
-            val left: Int = paddingLeft + lp.leftMargin
-            val top: Int = paddingTop + lp.topMargin
-            val right: Int = left + contentChildView.measuredWidth
-            val bottom: Int = top + contentChildView.measuredHeight
-
-            contentChildView.layout(left, top, right, bottom)
-        }
-
         layoutTopView()
         layoutContentView()
+    }
+
+    private fun layoutTopView() {
+        val lp = topChildView.layoutParams as MarginLayoutParams
+        val left: Int = paddingLeft + lp.leftMargin
+        val top: Int = (paddingTop + lp.topMargin) - topChildView.measuredHeight
+        val right: Int = left + topChildView.measuredWidth
+        val bottom = 0
+        topChildView.layout(left, top, right, bottom)
+    }
+
+    private fun layoutContentView() {
+        val lp = contentChildView.layoutParams as MarginLayoutParams
+        val left: Int = paddingLeft + lp.leftMargin
+        val top: Int = paddingTop + lp.topMargin
+        val right: Int = left + contentChildView.measuredWidth
+        val bottom: Int = top + contentChildView.measuredHeight
+        contentChildView.layout(left, top, right, bottom)
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
@@ -218,8 +200,8 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
             offsetY == 0F -> {
                 0F
             }
-            triggerOffSetTop > offsetY -> {
-                offsetY / triggerOffSetTop
+            triggerOffset > offsetY -> {
+                offsetY / triggerOffset
             }
             else -> {
                 1F
@@ -229,27 +211,24 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
             offsetY < 0 -> {
                 0f
             }
-            offsetY > maxOffSetTop -> {
-                maxOffSetTop.toFloat()
+            offsetY > maxOffSet -> {
+                maxOffSet.toFloat()
             }
             else -> {
                 offsetY
             }
         }
 
-        onProgressListeners.forEach { it(pullFraction) }
-        lastPullFraction = pullFraction
-
         topChildView.y = topChildView.top + offsetY
         contentChildView.y = contentChildView.top + offsetY
-        if (offsetY > triggerOffSetTop) {
+        if (offsetY > triggerOffset) {
             onCouldStartAnimation()
         }
     }
 
     private fun stopPullingDown() {
-        val rollBackOffset = if (offsetY > triggerOffSetTop) offsetY - triggerOffSetTop else offsetY
-        val triggerOffset = if (rollBackOffset != offsetY) triggerOffSetTop else 0
+        val rollBackOffset = if (offsetY > triggerOffset) offsetY - triggerOffset else offsetY
+        val triggerOffset = if (rollBackOffset != offsetY) triggerOffset else 0
 
         ValueAnimator.ofFloat(1F, 0F).apply {
             duration = ROLL_BACK_DURATION
@@ -277,20 +256,16 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         }
     }
 
-    fun onProgressListener(onProgressListener: (Float) -> Unit) {
-        onProgressListeners.add(onProgressListener)
-    }
-
     private fun onCouldStartAnimation() {
-        if (arrowAnimator.isRunning || progressImage.visibility == View.VISIBLE) {
+        if (arrowAnimator.isRunning || progressBarIOS.visibility == View.VISIBLE) {
             return
         }
         arrowAnimator.start()
     }
 
     private fun onCouldEndAnimation() {
-        progressImage.visibility = View.GONE
-        animatedVectorDrawable.stop()
+        progressBarIOS.visibility = View.GONE
+        progressBarIOS.stop()
         arrowView.visibility = View.VISIBLE
     }
 
