@@ -5,8 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.drawable.Drawable
-import android.os.Looper
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -16,14 +14,6 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
-import androidx.core.animation.doOnEnd
-import androidx.core.animation.doOnStart
-import androidx.vectordrawable.graphics.drawable.Animatable2Compat
-import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
-
-inline fun View.dp(value: Int): Int {
-    return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value.toFloat(), resources.displayMetrics).toInt()
-}
 
 class EASwipeToRefreshLayout @JvmOverloads constructor(
     context: Context,
@@ -31,27 +21,18 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     defStyle: Int = 0
 ) : ViewGroup(context, attrs, defStyle) {
 
-    companion object {
-
-        private const val STICKY_FACTOR = 0.66F
-        private const val STICKY_MULTIPLIER = 0.75F
-        private const val ROLL_BACK_DURATION = 500L
-
-        const val DECELERATION_DEGREE: Long = 2
-        const val ARROW_SPEED: Long = 75 * DECELERATION_DEGREE
-        const val REFRESH_DURATION: Long = ARROW_SPEED * 2
-
-    }
-
-    private val progressBarIOS: ProgressBarIOS = ProgressBarIOS(context).apply {
+    private val progressView: EAProgressBar = EAProgressBar(context).apply {
         layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
         isImmediately = false
         visibility = View.GONE
     }
 
-
     private val arrowView: ImageView = ImageView(context).apply {
-        layoutParams = FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER)
+        layoutParams = FrameLayout.LayoutParams(
+            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, ARROW_SIZE_DP, resources.displayMetrics).toInt(),
+            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, ARROW_SIZE_DP, resources.displayMetrics).toInt(),
+            Gravity.CENTER
+        )
         setBackgroundResource(R.drawable.ic_36_strelka_1)
     }
 
@@ -67,13 +48,16 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
 
         override fun onAnimationEnd(animation: Animator?) {
             arrowView.visibility = View.GONE
-            progressBarIOS.start()
-            progressBarIOS.visibility = View.VISIBLE
-            reverseArrowAnimator()
+            progressView.start()
+            progressView.visibility = View.VISIBLE
+            arrowView.rotation = 0F
         }
 
     }
-  
+
+    private lateinit var topChildView: View
+    private lateinit var contentChildView: View
+
     private var triggerOffset = 0
     private var maxOffSet = 0
 
@@ -84,27 +68,20 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
 
     private var currentState: State = State.IDLE
 
-    private val onTriggerListeners: MutableCollection<() -> Unit> = mutableListOf()
-
-    private lateinit var topChildView: View
-    private lateinit var contentChildView: View
+    private var onRefreshListener: OnRefreshListener? = null
 
     init {
 
         addView(
             FrameLayout(context).apply {
-                layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(64))
-                addView(progressBarIOS)
+                layoutParams = FrameLayout.LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, HEIGHT_DP, resources.displayMetrics).toInt()
+                )
+                addView(progressView)
                 addView(arrowView)
             }
         )
-
-        onTriggerListener {
-
-            android.os.Handler(Looper.getMainLooper()).postDelayed({
-                stopPullingDown()
-            }, REFRESH_DURATION)
-        }
 
     }
 
@@ -124,7 +101,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         measureChild(topChildView, widthMeasureSpec, heightMeasureSpec)
         measureChild(contentChildView, widthMeasureSpec, heightMeasureSpec)
         triggerOffset = topChildView.measuredHeight
-        maxOffSet = triggerOffset * 3
+        maxOffSet = triggerOffset * MAX_OFFSET_MULTIPLIER
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -132,32 +109,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         layoutContentView()
     }
 
-    private fun layoutTopView() {
-        val lp = topChildView.layoutParams as MarginLayoutParams
-        val left: Int = paddingLeft + lp.leftMargin
-        val top: Int = (paddingTop + lp.topMargin) - topChildView.measuredHeight
-        val right: Int = left + topChildView.measuredWidth
-        val bottom = 0
-        topChildView.layout(left, top, right, bottom)
-    }
-
-    private fun layoutContentView() {
-        val lp = contentChildView.layoutParams as MarginLayoutParams
-        val left: Int = paddingLeft + lp.leftMargin
-        val top: Int = paddingTop + lp.topMargin
-        val right: Int = left + contentChildView.measuredWidth
-        val bottom: Int = top + contentChildView.measuredHeight
-        contentChildView.layout(left, top, right, bottom)
-    }
-
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        fun checkIfScrolledFurther(ev: MotionEvent, dy: Float, dx: Float) =
-                if (!contentChildView.canScrollVertically(-1)) {
-                    ev.y > downY && Math.abs(dy) > Math.abs(dx)
-                } else {
-                    false
-                }
-
         var shouldStealTouchEvents = false
 
         if (currentState != State.IDLE) {
@@ -187,53 +139,47 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         }
 
         parent.requestDisallowInterceptTouchEvent(true)
+
         when (event.action) {
             MotionEvent.ACTION_MOVE -> {
                 offsetY = (event.y - downY) * (1 - STICKY_FACTOR * STICKY_MULTIPLIER)
-                move()
+                topChildView.y = topChildView.top + offsetY
+                contentChildView.y = contentChildView.top + offsetY
+                if (offsetY > triggerOffset) {
+                    onCouldStartAnimation()
+                }
             }
             MotionEvent.ACTION_CANCEL,
             MotionEvent.ACTION_UP -> {
                 currentState = State.ROLLING
-                stopPullingDown()
+                stopRefreshing()
             }
         }
 
         return handledTouchEvent
     }
 
-    private fun move() {
-        val pullFraction: Float = when {
-            offsetY == 0F -> {
-                0F
-            }
-            triggerOffset > offsetY -> {
-                offsetY / triggerOffset
-            }
-            else -> {
-                1F
-            }
-        }
-        offsetY = when {
-            offsetY < 0 -> {
-                0f
-            }
-            offsetY > maxOffSet -> {
-                maxOffSet.toFloat()
-            }
-            else -> {
-                offsetY
-            }
-        }
-
-        topChildView.y = topChildView.top + offsetY
-        contentChildView.y = contentChildView.top + offsetY
-        if (offsetY > triggerOffset) {
-            onCouldStartAnimation()
-        }
+    override fun checkLayoutParams(p: LayoutParams?): Boolean {
+        return p != null && p is MarginLayoutParams
     }
 
-    private fun stopPullingDown() {
+    override fun generateDefaultLayoutParams(): MarginLayoutParams {
+        return MarginLayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+    }
+
+    override fun generateLayoutParams(attrs: AttributeSet?): MarginLayoutParams {
+        return MarginLayoutParams(context, attrs)
+    }
+
+    override fun generateLayoutParams(p: LayoutParams?): MarginLayoutParams {
+        return MarginLayoutParams(p)
+    }
+
+    fun setOnRefreshListener(listener: OnRefreshListener) {
+        onRefreshListener = listener
+    }
+
+    fun stopRefreshing() {
         val rollBackOffset = if (offsetY > triggerOffset) offsetY - triggerOffset else offsetY
         val triggerOffset = if (rollBackOffset != offsetY) triggerOffset else 0
 
@@ -250,7 +196,7 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
                         // можно запускать refresh
                         currentState = State.TRIGGERING
                         offsetY = triggerOffset.toFloat()
-                        onTriggerListeners.forEach { it() }
+                        onRefreshListener?.onRefresh()
                     } else {
                         // просто вернулись назад (недостаточно потянули)
                         currentState = State.IDLE
@@ -263,8 +209,34 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         }
     }
 
+    private fun checkIfScrolledFurther(ev: MotionEvent, dy: Float, dx: Float): Boolean {
+        if (!contentChildView.canScrollVertically(-1)) {
+            return ev.y > downY && Math.abs(dy) > Math.abs(dx)
+        } else {
+            return false
+        }
+    }
+
+    private fun layoutTopView() {
+        val lp = topChildView.layoutParams as MarginLayoutParams
+        val left: Int = paddingLeft + lp.leftMargin
+        val top: Int = (paddingTop + lp.topMargin) - topChildView.measuredHeight
+        val right: Int = left + topChildView.measuredWidth
+        val bottom = 0
+        topChildView.layout(left, top, right, bottom)
+    }
+
+    private fun layoutContentView() {
+        val lp = contentChildView.layoutParams as MarginLayoutParams
+        val left: Int = paddingLeft + lp.leftMargin
+        val top: Int = paddingTop + lp.topMargin
+        val right: Int = left + contentChildView.measuredWidth
+        val bottom: Int = top + contentChildView.measuredHeight
+        contentChildView.layout(left, top, right, bottom)
+    }
+
     private fun onCouldStartAnimation() {
-        if (arrowAnimator.isRunning || progressBarIOS.visibility == View.VISIBLE) {
+        if (arrowAnimator.isRunning || progressView.visibility == View.VISIBLE) {
             return
         }
         arrowAnimator.addListener(arrowAnimatorListener)
@@ -272,26 +244,10 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
     }
 
     private fun onCouldEndAnimation() {
-        progressBarIOS.visibility = View.GONE
-        progressBarIOS.stop()
+        progressView.visibility = View.GONE
+        progressView.stop()
         arrowView.visibility = View.VISIBLE
     }
-
-    fun onTriggerListener(onTriggerListener: () -> Unit) {
-        onTriggerListeners.add(onTriggerListener)
-    }
-
-    fun removeOnTriggerListener(onTriggerListener: () -> Unit) {
-        onTriggerListeners.remove(onTriggerListener)
-    }
-
-    override fun checkLayoutParams(p: ViewGroup.LayoutParams?) = null != p && p is MarginLayoutParams
-
-    override fun generateDefaultLayoutParams() = MarginLayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-
-    override fun generateLayoutParams(attrs: AttributeSet?) = MarginLayoutParams(context, attrs)
-
-    override fun generateLayoutParams(p: ViewGroup.LayoutParams?) = MarginLayoutParams(p)
 
     enum class State {
         IDLE,
@@ -299,8 +255,22 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
         TRIGGERING
     }
 
-    private fun reverseArrowAnimator() {
-        arrowView.rotation = 0F
+    interface OnRefreshListener {
+
+        fun onRefresh()
+
+    }
+
+    private companion object {
+
+        const val STICKY_FACTOR: Float = 0.66F
+        const val STICKY_MULTIPLIER: Float = 0.75F
+        const val ROLL_BACK_DURATION: Long = 500L
+        const val ARROW_SPEED: Long = 150
+        const val HEIGHT_DP: Float = 64F
+        const val ARROW_SIZE_DP: Float = 36F
+        const val MAX_OFFSET_MULTIPLIER: Int = 3
+
     }
 
 }

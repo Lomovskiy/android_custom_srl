@@ -8,7 +8,7 @@ import android.widget.ProgressBar
 import androidx.vectordrawable.graphics.drawable.Animatable2Compat
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 
-class ProgressBarIOS @JvmOverloads constructor(
+class EAProgressBar @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
@@ -18,7 +18,6 @@ class ProgressBarIOS @JvmOverloads constructor(
         AnimatedVectorDrawableCompat.create(context, R.drawable.avd_loader)!!
 
     var isImmediately: Boolean = true
-        get set
 
     init {
 
