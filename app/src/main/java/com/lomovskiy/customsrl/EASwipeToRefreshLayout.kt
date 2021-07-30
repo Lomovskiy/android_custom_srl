@@ -124,7 +124,11 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> {
                 val dx = ev.x - downX
                 val dy = ev.y - downY
-                shouldStealTouchEvents = checkIfScrolledFurther(ev, dy, dx)
+                if (!contentChildView.canScrollVertically(-1)) {
+                    shouldStealTouchEvents = ev.y > downY && Math.abs(dy) > Math.abs(dx)
+                } else {
+                    shouldStealTouchEvents = false
+                }
             }
         }
 
@@ -206,14 +210,6 @@ class EASwipeToRefreshLayout @JvmOverloads constructor(
                 }
             })
             start()
-        }
-    }
-
-    private fun checkIfScrolledFurther(ev: MotionEvent, dy: Float, dx: Float): Boolean {
-        if (!contentChildView.canScrollVertically(-1)) {
-            return ev.y > downY && Math.abs(dy) > Math.abs(dx)
-        } else {
-            return false
         }
     }
 
