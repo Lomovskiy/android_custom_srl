@@ -15,23 +15,28 @@ class EAProgressBar @JvmOverloads constructor(
 ) : ProgressBar(context, attrs, defStyleAttr) {
 
     private val animatedVectorDrawable: AnimatedVectorDrawableCompat =
-        AnimatedVectorDrawableCompat.create(context, R.drawable.avd_loader)!!
+        AnimatedVectorDrawableCompat.create(context, R.drawable.ic_ea_progress_bar)!!
 
     var isImmediately: Boolean = true
+
+    var isLoading: Boolean = false
+        set(value) {
+            if (value == isLoading) {
+                return
+            }
+            field = value
+            if (isLoading) {
+                animatedVectorDrawable.start()
+            } else {
+                animatedVectorDrawable.stop()
+            }
+        }
 
     init {
 
         isIndeterminate = true
         setupAnimation()
 
-    }
-
-    fun start() {
-        animatedVectorDrawable.start()
-    }
-
-    fun stop() {
-        animatedVectorDrawable.stop()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

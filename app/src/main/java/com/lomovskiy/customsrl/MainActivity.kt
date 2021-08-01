@@ -2,6 +2,7 @@ package com.lomovskiy.customsrl
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +16,7 @@ import java.util.*
 class MainActivity : AppCompatActivity() {
 
     private lateinit var list: RecyclerView
+//    private lateinit var srl: QRefreshLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,6 +28,10 @@ class MainActivity : AppCompatActivity() {
         list.adapter = Adapter(List(200) {
             UUID.randomUUID().toString()
         })
+//        srl = findViewById(R.id.srl)
+//        srl.setOnRefreshListener {
+//            Handler(Looper.getMainLooper()).postDelayed({ srl.isRefreshing = false }, 10000)
+//        }
     }
 
 }

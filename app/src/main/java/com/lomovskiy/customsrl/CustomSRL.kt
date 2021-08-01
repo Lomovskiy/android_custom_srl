@@ -29,6 +29,7 @@ class CustomSRL @JvmOverloads constructor(
 
     private lateinit var childView: View
 
+    private var downX: Float = 0F
     private var downY: Float = 0F
 
     init {
@@ -41,29 +42,30 @@ class CustomSRL @JvmOverloads constructor(
         var handled = false
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> {
+                downX = ev.x
                 downY = ev.y
             }
             MotionEvent.ACTION_MOVE -> {
-                val dy = ev.y - downY
-                if (!childView.canScrollVertically(-1)) {
-                    handled = ev.y > downY
-                }
+                val dx: Float = abs(downX - ev.x)
+                val dy: Float = abs(downY - ev.y)
+                return dx < dy
+//                val dy = ev.y - downY
+//                Log.d(TAG_LOG, "y: %f, top: %d".format(childView.y, childView.top))
+//                if (!childView.canScrollVertically(-1)) {
+//                    handled = ev.y > downY
+//                }
             }
         }
         return handled
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            downY = event.y
-        }
-        if (event.action == MotionEvent.ACTION_MOVE) {
-            val offset = event.y - downY
-//            Log.d(TAG_LOG, "offset %f".format(offset))
-//            Log.d(TAG_LOG, "progressView.y %f, progressView.top %f".format(offset, progressView.y, progressView.top))
-//            Log.d(TAG_LOG, "childView.y %f, childView.top %f".format(offset, childView.y, childView.top))
-            progressView.y = progressView.top + offset
-            childView.y = childView.top + offset
+        when (event.action) {
+            MotionEvent.ACTION_MOVE -> {
+                val offset = event.y - downY
+                progressView.y = progressView.top + offset
+                childView.y = childView.top + offset
+            }
         }
         return true
     }
